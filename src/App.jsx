@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useAuth0 } from '@auth0/auth0-react'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -59,6 +60,16 @@ const initialProviderForm = {
 }
 
 function App() {
+  const {
+    loginWithRedirect,
+    logout: auth0Logout,
+    isAuthenticated: isAuth0Authenticated,
+    isLoading: isAuth0Loading,
+    user: auth0User,
+    getAccessTokenSilently,
+    error: auth0Error,
+  } = useAuth0()
+
   const [session, setSession] = useState(null)
   const [screen, setScreen] = useState('login')
 
@@ -84,6 +95,48 @@ function App() {
 
   const showMessage = (type, text) => {
     setMessage({ type, text })
+  }
+
+  useEffect(() => {
+    if (auth0Error) {
+      showMessage('error', `Error de Auth0: ${auth0Error.message}`)
+    }
+  }, [auth0Error])
+
+  useEffect(() => {
+    const loadAuth0Session = async () => {
+      if (!isAuth0Authenticated || !auth0User) {
+        return
+      }
+
+      try {
+        const token = await getAccessTokenSilently()
+        const newSession = {
+          email: auth0User.email,
+          fullName: auth0User.name || auth0User.nickname || auth0User.email,
+          role: 'ADMIN',
+          token,
+          authProvider: 'AUTH0',
+        }
+
+        setSession(newSession)
+        setScreen('dashboard')
+        showMessage('success', 'Inicio de sesión con Auth0 exitoso.')
+      } catch (error) {
+        showMessage('error', `No fue posible obtener el token de Auth0: ${error.message}`)
+      }
+    }
+
+    loadAuth0Session()
+  }, [isAuth0Authenticated, auth0User, getAccessTokenSilently])
+
+  const handleAuth0Login = async () => {
+    setMessage(null)
+    await loginWithRedirect({
+      authorizationParams: {
+        connection: 'google-oauth2',
+      },
+    })
   }
 
   const isStrongPassword = (password) => {
@@ -209,8 +262,10 @@ function App() {
   }
 
   const logout = async () => {
+    const isAuth0Session = session?.authProvider === 'AUTH0'
+
     try {
-      if (session?.token) {
+      if (session?.token && !isAuth0Session) {
         await fetch(`${API_BASE_URL}/api/auth/logout`, {
           method: 'POST',
           headers: {
@@ -231,6 +286,14 @@ function App() {
     setProviderForm(initialProviderForm)
     setScreen('login')
     setMessage(null)
+
+    if (isAuth0Session) {
+      auth0Logout({
+        logoutParams: {
+          returnTo: window.location.origin,
+        },
+      })
+    }
   }
 
   const goDashboard = () => {
@@ -282,6 +345,15 @@ function App() {
 
               <button disabled={loading} className="primary-button">
                 {loading ? 'Ingresando...' : 'Ingresar'}
+              </button>
+
+              <button
+                type="button"
+                disabled={isAuth0Loading}
+                className="secondary-button"
+                onClick={handleAuth0Login}
+              >
+                {isAuth0Loading ? 'Conectando con Auth0...' : 'Ingresar con Google / Auth0'}
               </button>
 
               <button type="button" className="link-button" onClick={() => {
