@@ -303,17 +303,33 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="brand-panel">
+      <section className={`brand-panel ${!session ? 'auth-brand' : 'workspace-brand'}`}>
         <div className="brand-badge">O</div>
-        <h1>OrDexxa</h1>
-        <p>Gestión de ventas y pedidos.</p>
+        <h1>Ordexxa</h1>
 
-        <div className="flow-card">
-          <span>Panel administrativo</span>
-          <strong>Registro de proveedores</strong>
-          <span>Gestión comercial</span>
-          <span>Gestión de ventas y pedidos</span>
-        </div>
+        {!session && (
+          <div className="brand-summary">
+            <span>Acceso administrativo</span>
+            <strong>Gestión segura de proveedores</strong>
+            <p>Inicia sesión para administrar la información comercial de Ordexxa.</p>
+          </div>
+        )}
+
+        {session && screen === 'dashboard' && (
+          <div className="brand-summary">
+            <span>Panel administrativo</span>
+            <strong>Operación comercial</strong>
+            <p>Consulta los módulos disponibles para gestionar la operación de la microempresa.</p>
+          </div>
+        )}
+
+        {session && screen === 'providers' && (
+          <div className="brand-summary">
+            <span>Gestión de proveedores</span>
+            <strong>Registro de proveedores</strong>
+            <p>Administra la información básica de proveedores para compras, pedidos e inventario.</p>
+          </div>
+        )}
       </section>
 
       <section className="content-panel">
@@ -324,7 +340,7 @@ function App() {
         )}
 
         {!session && screen === 'login' && (
-          <AuthCard title="Iniciar sesión" subtitle="Ingresa con tu correo y contraseña.">
+          <AuthCard title="Iniciar sesión" subtitle="Accede al panel administrativo con tu cuenta autorizada.">
             <form onSubmit={handleLogin} className="form" autoComplete="off">
               <Input
                 label="Correo"
@@ -483,11 +499,11 @@ function AuthCard({ title, subtitle, children }) {
 function Dashboard({ session, logout, openProviders }) {
   const modules = [
     { title: 'Gestión de proveedores', description: 'Registrar y consultar proveedores.', enabled: true },
-    { title: 'Pedidos', description: 'Consulta y seguimiento de pedidos.', enabled: false },
-    { title: 'Inventario', description: 'Control de productos disponibles.', enabled: false },
-    { title: 'Ventas', description: 'Registro y análisis de ventas.', enabled: false },
-    { title: 'Usuarios', description: 'Roles y control de acceso.', enabled: false },
-    { title: 'Notificaciones', description: 'Alertas y mensajes del sistema.', enabled: false },
+    { title: 'Pedidos', description: 'Registrar, consultar y hacer seguimiento de pedidos.', enabled: false },
+    { title: 'Inventario', description: 'Consultar disponibilidad y control de productos.', enabled: false },
+    { title: 'Ventas', description: 'Registrar ventas y consultar reportes comerciales.', enabled: false },
+    { title: 'Usuarios', description: 'Administrar usuarios, roles y permisos de acceso.', enabled: false },
+    { title: 'Notificaciones', description: 'Revisar alertas y comunicaciones del sistema.', enabled: false },
   ]
 
   return (
@@ -497,14 +513,14 @@ function Dashboard({ session, logout, openProviders }) {
       <section className="hero">
         <div>
           <p className="eyebrow">Panel de control</p>
-          <h2>Bienvenido a OrDexxa</h2>
-          <p>Selecciona un módulo para gestionar la operación de OrDexxa.</p>
+          <h2>Bienvenido a Ordexxa</h2>
+          <p>Selecciona el módulo habilitado para administrar la operación comercial.</p>
         </div>
       </section>
 
       <section className="notifications">
         <h3>Estado general</h3>
-        <p>Cuenta verificada correctamente. Ya puedes gestionar proveedores desde el módulo habilitado.</p>
+        <p>Sesión activa. El módulo de proveedores está disponible para registro y consulta operativa.</p>
       </section>
 
       <div className="module-grid">
@@ -513,10 +529,11 @@ function Dashboard({ session, logout, openProviders }) {
             key={module.title}
             className={`module-card ${module.enabled ? 'enabled' : 'disabled'}`}
             onClick={module.enabled ? openProviders : undefined}
+            disabled={!module.enabled}
           >
             <h3>{module.title}</h3>
             <p>{module.description}</p>
-            <span>{module.enabled ? 'Abrir módulo' : 'Preparado para expansión'}</span>
+            {module.enabled && <span>Abrir módulo</span>}
           </button>
         ))}
       </div>
@@ -536,11 +553,11 @@ function ProvidersPanel({ session, form, setForm, loading, onSubmit, onBack, log
           <p className="eyebrow">Gestión de proveedores</p>
           <h2>Registrar proveedor</h2>
           <p>
-            Registra proveedores para mantener actualizada la información comercial de OrDexxa.
+            Registra la información básica del proveedor para mantener actualizada la operación comercial.
           </p>
 
           <div className="technical-note">
-            Los datos registrados quedan disponibles para la operación de compras, pedidos e inventario.
+            La información registrada sirve como base para compras, pedidos e inventario.
           </div>
         </div>
 
@@ -624,7 +641,7 @@ function Header({ session, logout }) {
   return (
     <header className="workspace-header">
       <div>
-        <strong>OrDexxa</strong>
+        <strong>Ordexxa</strong>
         <span>{session.fullName} · {session.email}</span>
       </div>
       <button className="secondary-button" onClick={logout}>Cerrar sesión</button>
