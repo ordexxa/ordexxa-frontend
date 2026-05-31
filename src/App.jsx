@@ -99,7 +99,7 @@ function App() {
 
   useEffect(() => {
     if (auth0Error) {
-      showMessage('error', `Error de Auth0: ${auth0Error.message}`)
+      showMessage('error', `Error de autenticación: ${auth0Error.message}`)
     }
   }, [auth0Error])
 
@@ -121,9 +121,9 @@ function App() {
 
         setSession(newSession)
         setScreen('dashboard')
-        showMessage('success', 'Inicio de sesión con Auth0 exitoso.')
+        showMessage('success', 'Inicio de sesión exitoso.')
       } catch (error) {
-        showMessage('error', `No fue posible obtener el token de Auth0: ${error.message}`)
+        showMessage('error', `No fue posible iniciar sesión con Google: ${error.message}`)
       }
     }
 
@@ -353,7 +353,7 @@ function App() {
                 className="secondary-button"
                 onClick={handleAuth0Login}
               >
-                {isAuth0Loading ? 'Conectando con Auth0...' : 'Ingresar con Google / Auth0'}
+                {isAuth0Loading ? 'Conectando con Google...' : 'Iniciar sesión con Google'}
               </button>
 
               <button type="button" className="link-button" onClick={() => {
