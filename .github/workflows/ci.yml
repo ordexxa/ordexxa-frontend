@@ -3,13 +3,13 @@ name: Ordexxa Frontend CI
 on:
   push:
     branches:
-      - master
       - main
+      - master
       - develop
   pull_request:
     branches:
-      - master
       - main
+      - master
       - develop
 
 jobs:
@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -32,3 +34,9 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: SonarQube Cloud analysis
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
