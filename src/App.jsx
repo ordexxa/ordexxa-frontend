@@ -305,7 +305,7 @@ function App() {
     <main className="app-shell">
       <section className={`brand-panel ${!session ? 'auth-brand' : 'workspace-brand'}`}>
         <div className="brand-badge">O</div>
-        <h1>Simon</h1>
+        <h1>Ordexxa</h1>
 
         {!session && (
           <div className="brand-summary">
