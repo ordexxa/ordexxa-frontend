@@ -4,48 +4,7 @@ import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
-const DOCUMENT_TYPES = [
-  { code: 'NIT', name: 'NIT - Número de Identificación Tributaria' },
-  { code: 'CC', name: 'CC - Cédula de ciudadanía' },
-  { code: 'CE', name: 'CE - Cédula de extranjería' },
-  { code: 'PASAPORTE', name: 'Pasaporte' },
-]
-
-const DEPARTMENT_CITIES = {
-  'Amazonas': ['Leticia', 'Puerto Nariño', 'Otra ciudad'],
-  'Antioquia': ['Medellín', 'Bello', 'Envigado', 'Itagüí', 'Rionegro', 'Apartadó', 'Turbo', 'Otra ciudad'],
-  'Arauca': ['Arauca', 'Saravena', 'Tame', 'Otra ciudad'],
-  'Atlántico': ['Barranquilla', 'Soledad', 'Malambo', 'Sabanalarga', 'Otra ciudad'],
-  'Bogotá D.C.': ['Bogotá', 'Otra ciudad'],
-  'Bolívar': ['Cartagena', 'Magangué', 'Turbaco', 'Arjona', 'Otra ciudad'],
-  'Boyacá': ['Tunja', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Otra ciudad'],
-  'Caldas': ['Manizales', 'Villamaría', 'La Dorada', 'Chinchiná', 'Otra ciudad'],
-  'Caquetá': ['Florencia', 'San Vicente del Caguán', 'Otra ciudad'],
-  'Casanare': ['Yopal', 'Aguazul', 'Villanueva', 'Otra ciudad'],
-  'Cauca': ['Popayán', 'Santander de Quilichao', 'Puerto Tejada', 'Otra ciudad'],
-  'Cesar': ['Valledupar', 'Aguachica', 'La Jagua de Ibirico', 'Otra ciudad'],
-  'Chocó': ['Quibdó', 'Istmina', 'Acandí', 'Otra ciudad'],
-  'Córdoba': ['Montería', 'Lorica', 'Sahagún', 'Cereté', 'Otra ciudad'],
-  'Cundinamarca': ['Soacha', 'Chía', 'Zipaquirá', 'Facatativá', 'Girardot', 'Fusagasugá', 'Otra ciudad'],
-  'Guainía': ['Inírida', 'Otra ciudad'],
-  'Guaviare': ['San José del Guaviare', 'Otra ciudad'],
-  'Huila': ['Neiva', 'Pitalito', 'Garzón', 'La Plata', 'Otra ciudad'],
-  'La Guajira': ['Riohacha', 'Maicao', 'Uribia', 'Otra ciudad'],
-  'Magdalena': ['Santa Marta', 'Ciénaga', 'Fundación', 'Otra ciudad'],
-  'Meta': ['Villavicencio', 'Acacías', 'Granada', 'Puerto López', 'Otra ciudad'],
-  'Nariño': ['Pasto', 'Tumaco', 'Ipiales', 'Túquerres', 'Otra ciudad'],
-  'Norte de Santander': ['Cúcuta', 'Ocaña', 'Pamplona', 'Villa del Rosario', 'Otra ciudad'],
-  'Putumayo': ['Mocoa', 'Puerto Asís', 'Orito', 'Otra ciudad'],
-  'Quindío': ['Armenia', 'Calarcá', 'Montenegro', 'Quimbaya', 'Otra ciudad'],
-  'Risaralda': ['Pereira', 'Dosquebradas', 'Santa Rosa de Cabal', 'La Virginia', 'Otra ciudad'],
-  'San Andrés y Providencia': ['San Andrés', 'Providencia', 'Otra ciudad'],
-  'Santander': ['Bucaramanga', 'Floridablanca', 'Girón', 'Piedecuesta', 'Barrancabermeja', 'Otra ciudad'],
-  'Sucre': ['Sincelejo', 'Corozal', 'Sampués', 'Otra ciudad'],
-  'Tolima': ['Ibagué', 'Espinal', 'Melgar', 'Honda', 'Otra ciudad'],
-  'Valle del Cauca': ['Cali', 'Palmira', 'Buenaventura', 'Tuluá', 'Buga', 'Cartago', 'Otra ciudad'],
-  'Vaupés': ['Mitú', 'Otra ciudad'],
-  'Vichada': ['Puerto Carreño', 'Otra ciudad'],
-}
+const CATALOG_REFRESH_INTERVAL_MS = 5000
 
 const initialProviderForm = {
   businessName: '',
@@ -57,6 +16,37 @@ const initialProviderForm = {
   city: '',
   customCity: '',
   addressLine: '',
+}
+
+const normalizeDocumentTypes = (items) => {
+  if (!Array.isArray(items)) {
+    return []
+  }
+
+  return items
+    .filter((item) => item?.code && item?.name)
+    .map((item) => ({
+      code: item.code,
+      name: item.name,
+    }))
+}
+
+const normalizeDepartments = (items) => {
+  if (!Array.isArray(items)) {
+    return []
+  }
+
+  return items
+    .filter((department) => department?.code && department?.name)
+    .map((department) => ({
+      code: department.code,
+      name: department.name,
+      cities: Array.isArray(department.cities)
+        ? department.cities
+          .filter((city) => city?.name)
+          .map((city) => ({ id: city.id, name: city.name }))
+        : [],
+    }))
 }
 
 function App() {
@@ -90,12 +80,77 @@ function App() {
   })
 
   const [providerForm, setProviderForm] = useState(initialProviderForm)
+  const [documentTypes, setDocumentTypes] = useState([])
+  const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
 
   const showMessage = (type, text) => {
     setMessage({ type, text })
   }
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadCatalogs = async () => {
+      try {
+        const [documentTypesResponse, departmentsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/catalog/document-types`),
+          fetch(`${API_BASE_URL}/api/catalog/departments`),
+        ])
+
+        if (!documentTypesResponse.ok || !departmentsResponse.ok) {
+          throw new Error('No fue posible cargar los catálogos.')
+        }
+
+        const [documentTypesData, departmentsData] = await Promise.all([
+          documentTypesResponse.json(),
+          departmentsResponse.json(),
+        ])
+
+        if (!isMounted) {
+          return
+        }
+
+        const nextDocumentTypes = normalizeDocumentTypes(documentTypesData)
+        const nextDepartments = normalizeDepartments(departmentsData)
+
+        setDocumentTypes(nextDocumentTypes)
+        setDepartments(nextDepartments)
+
+        setProviderForm((currentForm) => {
+          const documentTypeExists = !currentForm.documentType
+            || nextDocumentTypes.some((type) => type.code === currentForm.documentType)
+
+          const selectedDepartment = nextDepartments.find((department) => department.name === currentForm.department)
+          const departmentExists = !currentForm.department || Boolean(selectedDepartment)
+
+          const cityExists = !currentForm.city
+            || currentForm.city === 'Otra ciudad'
+            || selectedDepartment?.cities.some((city) => city.name === currentForm.city)
+
+          return {
+            ...currentForm,
+            documentType: documentTypeExists ? currentForm.documentType : '',
+            documentNumber: documentTypeExists ? currentForm.documentNumber : '',
+            department: departmentExists ? currentForm.department : '',
+            city: departmentExists && cityExists ? currentForm.city : '',
+            customCity: departmentExists && cityExists ? currentForm.customCity : '',
+          }
+        })
+      } catch (error) {
+        console.error('No fue posible cargar los catálogos.', error)
+      }
+    }
+
+    loadCatalogs()
+    const intervalId = window.setInterval(loadCatalogs, CATALOG_REFRESH_INTERVAL_MS)
+
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   useEffect(() => {
     if (auth0Error) {
@@ -475,6 +530,8 @@ function App() {
             form={providerForm}
             setForm={setProviderForm}
             loading={loading}
+            documentTypes={documentTypes}
+            departments={departments}
             onSubmit={handleProviderSubmit}
             onBack={goDashboard}
             logout={logout}
@@ -541,7 +598,7 @@ function Dashboard({ session, logout, openProviders }) {
   )
 }
 
-function ProvidersPanel({ session, form, setForm, loading, onSubmit, onBack, logout }) {
+function ProvidersPanel({ session, form, setForm, loading, documentTypes, departments, onSubmit, onBack, logout }) {
   return (
     <div className="workspace">
       <Header session={session} logout={logout} />
@@ -571,8 +628,8 @@ function ProvidersPanel({ session, form, setForm, loading, onSubmit, onBack, log
           <Select
             label="Tipo de documento"
             value={form.documentType}
-            options={DOCUMENT_TYPES.map((type) => type.code)}
-            optionLabels={DOCUMENT_TYPES.reduce((labels, type) => ({ ...labels, [type.code]: type.name }), {})}
+            options={documentTypes.map((type) => type.code)}
+            optionLabels={documentTypes.reduce((labels, type) => ({ ...labels, [type.code]: type.name }), {})}
             onChange={(value) => setForm({ ...form, documentType: value, documentNumber: '' })}
             required
           />
@@ -601,14 +658,14 @@ function ProvidersPanel({ session, form, setForm, loading, onSubmit, onBack, log
           <Select
             label="Departamento"
             value={form.department}
-            options={Object.keys(DEPARTMENT_CITIES)}
+            options={departments.map((department) => department.name)}
             onChange={(value) => setForm({ ...form, department: value, city: '', customCity: '' })}
             required
           />
           <Select
             label="Ciudad"
             value={form.city}
-            options={form.department ? DEPARTMENT_CITIES[form.department] : []}
+            options={departments.find((department) => department.name === form.department)?.cities.map((city) => city.name) ?? []}
             onChange={(value) => setForm({ ...form, city: value, customCity: '' })}
             required
             disabled={!form.department}
